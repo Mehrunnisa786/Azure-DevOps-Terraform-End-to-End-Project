@@ -1,0 +1,6 @@
+rgname                 = "stage-afrah-rg"
+service_principal_name = "stage-afrah-spn"
+keyvault_name          = "stage-afrah-kv-101"
+SUB_ID = ""
+node_pool_name = "stagenp"
+cluster_name = "stage-afrah-cluster"

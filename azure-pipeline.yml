@@ -1,1 +1,102 @@
+trigger:
+  branches:
+    include:
+      - main
+      - feature/*
+  paths:
+    include:
+      - end-to-end-project/all-code/**
+      - azure-pipelines.yml
 
+variables:
+  terraform_state_rg: 'terraform-state-rg'
+  tfdevafrah001: 'tfdevafrah001'
+  tfstageafrah001: 'tfstageafrah001'
+  tfstate: 'tfstate'
+  dev_tfstate_key: 'dev.terraform.tfstate'
+  stage_tfstate_key: 'stage.terraform.tfstate'
+
+stages:
+- stage: validate
+  jobs:
+    - job: tf_validate
+      pool:
+        vmImage: ubuntu-latest
+      steps:
+        - task: TerraformInstaller@1
+          inputs:
+            terraformVersion: 'latest'
+        - task: TerraformTask@5
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            workingDirectory: '$(System.DefaultWorkingDirectory)/end-to-end-project/all-code/dev'
+            backendServiceArm: 'Azure subscription 1(1)(945a5939-f994-4cc8-9fbb-65f8e87eaf5a)'
+            backendAzureRmResourceGroupName: '$(terraform_state_rg)'
+            backendAzureRmStorageAccountName: '$(tfdevafrah001)'
+            backendAzureRmContainerName: '$(tfstate)'
+            backendAzureRmKey: '$(dev_tfstate_key)'
+        - task: TerraformTask@5
+          inputs:
+            provider: 'azurerm'
+            command: 'validate'
+            workingDirectory: '$(System.DefaultWorkingDirectory)/end-to-end-project/all-code/dev'
+            environmentAzureRmUseIdTokenGeneration: true
+
+- stage: Dev_deploy
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+    - job: terraform_apply_dev
+      pool:
+        vmImage: ubuntu-latest
+      steps:
+        - task: TerraformInstaller@1
+          inputs:
+            terraformVersion: 'latest'
+        - task: TerraformTask@5
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            workingDirectory: '$(System.DefaultWorkingDirectory)/end-to-end-project/all-code/dev'
+            backendServiceArm: 'Azure subscription 1(1)(945a5939-f994-4cc8-9fbb-65f8e87eaf5a)'
+            backendAzureRmResourceGroupName: '$(terraform_state_rg)'
+            backendAzureRmStorageAccountName: '$(tfdevafrah001)'
+            backendAzureRmContainerName: '$(tfstate)'
+            backendAzureRmKey: '$(dev_tfstate_key)'
+        - task: TerraformTask@5
+          inputs:
+            provider: 'azurerm'
+            command: 'apply'
+            workingDirectory: '$(System.DefaultWorkingDirectory)/end-to-end-project/all-code/dev'
+            commandOptions: '--auto-approve'
+            environmentServiceNameAzureRM: 'Azure subscription 1(1)(945a5939-f994-4cc8-9fbb-65f8e87eaf5a)'
+            environmentAzureRmUseIdTokenGeneration: true
+
+- stage: stage_deploy
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+    - job: terraform_apply_stage
+      pool:
+        vmImage: ubuntu-latest
+      steps:
+        - task: TerraformInstaller@1
+          inputs:
+            terraformVersion: 'latest'
+        - task: TerraformTask@5
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            workingDirectory: '$(System.DefaultWorkingDirectory)/end-to-end-project/all-code/staging'
+            backendServiceArm: 'Azure subscription 1(1)(945a5939-f994-4cc8-9fbb-65f8e87eaf5a)'
+            backendAzureRmResourceGroupName: '$(terraform_state_rg)'
+            backendAzureRmStorageAccountName: '$(tfstageafrah001)'
+            backendAzureRmContainerName: '$(tfstate)'
+            backendAzureRmKey: '$(stage_tfstate_key)'
+        - task: TerraformTask@5
+          inputs:
+            provider: 'azurerm'
+            command: 'apply'
+            workingDirectory: '$(System.DefaultWorkingDirectory)/end-to-end-project/all-code/staging'
+            commandOptions: '--auto-approve'
+            environmentServiceNameAzureRM: 'Azure subscription 1(1)(945a5939-f994-4cc8-9fbb-65f8e87eaf5a)'
+            environmentAzureRmUseIdTokenGeneration: true

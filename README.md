@@ -4,7 +4,8 @@ A multi-stage Azure DevOps pipeline that provisions Azure infrastructure — AKS
 
 ## Pipeline Run
 
-![Successful pipeline run: validate → Dev_deploy → stage_deploy](./docs/pipeline-success.png)
+![Uploading Screenshot 2026-06-30 at 12.32.47 PM.png…]()
+
 
 *Three-stage pipeline — Terraform validate, Dev deploy, and Staging deploy — completing successfully end-to-end.*
 

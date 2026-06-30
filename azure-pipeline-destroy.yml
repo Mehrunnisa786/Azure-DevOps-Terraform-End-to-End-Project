@@ -10,8 +10,13 @@ parameters:
     type: string
     values:
       - dev
-      - staging
+      - stage
     default: dev
+
+variables:
+  terraform_state_rg: 'terraform-state-rg'
+  tfstate: 'tfstate'
+
 stages:
 - stage: plan_destroy
   jobs:
@@ -29,9 +34,9 @@ stages:
             workingDirectory: '$(System.DefaultWorkingDirectory)/end-to-end-project/all-code/${{ parameters.environment }}'
             backendServiceArm: 'Azure subscription 1(1)(945a5939-f994-4cc8-9fbb-65f8e87eaf5a)'
             backendAzureRmResourceGroupName: '$(terraform_state_rg)'
-            backendAzureRmStorageAccountName: 'tf${{ parameters.environment }}afrah001)'
+            backendAzureRmStorageAccountName: 'tf${{ parameters.environment }}afrah001'
             backendAzureRmContainerName: '$(tfstate)'
-            backendAzureRmKey: '${{ parameters.environment }}.tfstate_key'
+            backendAzureRmKey: '${{ parameters.environment }}.terraform.tfstate'
         - task: TerraformTask@5
           inputs:
             provider: 'azurerm'
@@ -39,31 +44,40 @@ stages:
             workingDirectory: '$(System.DefaultWorkingDirectory)/end-to-end-project/all-code/${{ parameters.environment }}'
             environmentServiceNameAzureRM: 'Azure subscription 1(1)(945a5939-f994-4cc8-9fbb-65f8e87eaf5a)'
             environmentAzureRmUseIdTokenGeneration: true
+            commandOptions: '-destroy'
+          env:
+            TF_VAR_ssh_public_key: $(sshPublicKey)
 
-- stage: destory_env
+- stage: destroy_env
   jobs:
-    - job: destroy
+    - deployment: destroy
       pool:
         vmImage: ubuntu-latest
-      steps:
-        - task: TerraformInstaller@1
-          inputs:
-            terraformVersion: 'latest'
-        - task: TerraformTask@5
-          inputs:
-            provider: 'azurerm'
-            command: 'init'
-            workingDirectory: '$(System.DefaultWorkingDirectory)/end-to-end-project/all-code/${{ parameters.environment }}'
-            backendServiceArm: 'Azure subscription 1(1)(945a5939-f994-4cc8-9fbb-65f8e87eaf5a)'
-            backendAzureRmResourceGroupName: '$(terraform_state_rg)'
-            backendAzureRmStorageAccountName: 'tf${{ parameters.environment }}afrah001)'
-            backendAzureRmContainerName: '$(tfstate)'
-            backendAzureRmKey: '${{ parameters.environment }}.tfstate_key'
-        
-        - task: TerraformTask@5
-          inputs:
-            provider: 'azurerm'
-            command: 'destroy'
-            workingDirectory: '$(System.DefaultWorkingDirectory)/end-to-end-project/all-code/${{ parameters.environment }}'
-            commandOptions: '--auto-approve'
-            environmentServiceNameAzureRM: 'Azure subscription 1(1)(945a5939-f994-4cc8-9fbb-65f8e87eaf5a)'
+      environment: 'terraform-destroy-${{ parameters.environment }}'
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - task: TerraformInstaller@1
+                inputs:
+                  terraformVersion: 'latest'
+              - task: TerraformTask@5
+                inputs:
+                  provider: 'azurerm'
+                  command: 'init'
+                  workingDirectory: '$(System.DefaultWorkingDirectory)/end-to-end-project/all-code/${{ parameters.environment }}'
+                  backendServiceArm: 'Azure subscription 1(1)(945a5939-f994-4cc8-9fbb-65f8e87eaf5a)'
+                  backendAzureRmResourceGroupName: '$(terraform_state_rg)'
+                  backendAzureRmStorageAccountName: 'tf${{ parameters.environment }}afrah001'
+                  backendAzureRmContainerName: '$(tfstate)'
+                  backendAzureRmKey: '${{ parameters.environment }}.terraform.tfstate'
+              - task: TerraformTask@5
+                inputs:
+                  provider: 'azurerm'
+                  command: 'destroy'
+                  workingDirectory: '$(System.DefaultWorkingDirectory)/end-to-end-project/all-code/${{ parameters.environment }}'
+                  commandOptions: '--auto-approve'
+                  environmentServiceNameAzureRM: 'Azure subscription 1(1)(945a5939-f994-4cc8-9fbb-65f8e87eaf5a)'
+                  environmentAzureRmUseIdTokenGeneration: true
+                env:
+                  TF_VAR_ssh_public_key: $(sshPublicKey)

@@ -26,3 +26,8 @@ variable "node_pool_name" {
 variable "cluster_name" {
   
 }
+
+variable "ssh_public_key" {
+  description = "SSH public key for AKS node pool"
+  type        = string
+}

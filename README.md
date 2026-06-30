@@ -4,6 +4,7 @@ A multi-stage Azure DevOps pipeline that provisions Azure infrastructure — AKS
 
 ## Pipeline Run
 
+<img width="1416" height="693" alt="Screenshot 2026-06-30 at 4 33 35 PM" src="https://github.com/user-attachments/assets/ffdf954f-e1ef-40aa-938e-d6fabf20e59e" />
 ![Uploading Screenshot 2026-06-30 at 4.33.35 PM.png…]()
 
 

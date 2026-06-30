@@ -1,4 +1,90 @@
-# 🚀 Azure End-to-End Infrastructure Automation using Terraform & Azure DevOps
+# Terraform End-to-End: Azure DevOps CI/CD for AKS, Key Vault & Service Principal
+
+A multi-stage Azure DevOps pipeline that provisions Azure infrastructure — AKS clusters, Key Vault, and Service Principals — across **dev** and **staging** environments using Terraform, with remote state management, RBAC-based access control, and a separate manual-approval destroy pipeline for safe environment teardown.
+
+## Pipeline Run
+
+![Successful pipeline run: validate → Dev_deploy → stage_deploy](./docs/pipeline-success.png)
+
+*Three-stage pipeline — Terraform validate, Dev deploy, and Staging deploy — completing successfully end-to-end.*
+
+## What This Project Does
+
+This repo provisions, per environment (dev/staging):
+
+- **Resource Group** — isolated per environment
+- **Azure AD Application + Service Principal** — created dynamically via Terraform, used for AKS cluster authentication
+- **Azure Key Vault** (RBAC-authorization enabled) — stores the Service Principal's client secret
+- **AKS Cluster** — with autoscaling node pool, OIDC issuer enabled, and SSH access configured for node debugging
+- **Role Assignments**:
+  - Service Principal granted **Contributor** at subscription scope
+  - Pipeline identity granted **Key Vault Secrets Officer** on the vault (required because the vault uses RBAC authorization, not legacy access policies)
+
+State is stored remotely in **Azure Blob Storage**, with separate state files per environment to prevent cross-environment interference.
+
+## Architecture
+
+```
+end-to-end-project/all-code/
+├── dev/
+│   ├── main.tf
+│   ├── variables.tf
+│   ├── backend.tf
+│   └── terraform.tfvars
+├── staging/
+│   ├── main.tf
+│   ├── variables.tf
+│   ├── backend.tf
+│   └── terraform.tfvars
+└── modules/
+    ├── ServicePrincipal/
+    ├── keyvault/
+    └── aks/
+```
+
+## Pipelines
+
+### 1. `azure-pipelines.yml` — Deploy Pipeline
+Triggers automatically on push to `main` (when changes touch `end-to-end-project/all-code/**`).
+
+**Stages:**
+1. **validate** — `terraform init` + `terraform validate` against dev config
+2. **Dev_deploy** — `terraform apply` to dev environment
+3. **stage_deploy** — `terraform apply` to staging environment
+
+### 2. `azure-pipelines-destroy.yml` — Destroy Pipeline
+Manually triggered only (`trigger: none`), with an `environment` parameter (`dev` / `stage`).
+
+**Stages:**
+1. **plan_destroy** — runs `terraform plan -destroy` automatically, showing exactly what would be removed
+2. **destroy_env** — gated behind an **Azure DevOps Environment approval** — a human must manually approve before `terraform destroy --auto-approve` executes
+
+This two-step plan-then-approve-then-destroy flow prevents accidental infrastructure deletion.
+
+## Key Engineering Decisions & Problems Solved
+
+Building this pipeline surfaced a number of real-world Terraform + Azure DevOps issues, each resolved deliberately:
+
+- **YAML indentation correctness** — Azure Pipelines YAML is strict about indentation; debugged several malformed pipeline definitions that silently failed to parse.
+- **Interactive variable prompts in CI** — `var.ssh_public_key` had no default, causing the pipeline to hang indefinitely waiting for input that would never come in a non-interactive CI agent. Fixed by injecting the value via `TF_VAR_ssh_public_key` as a pipeline variable, keeping the key out of source control.
+- **State lock recovery** — handled `Error acquiring the state lock` scenarios caused by cancelled/interrupted runs, using both Azure Portal lease-breaking and `az storage blob lease break` via CLI.
+- **Globally unique resource naming** — caught and fixed a Key Vault name collision (`VaultAlreadyExists`) caused by template/placeholder values left in `terraform.tfvars`.
+- **Immutable Azure resource settings** — resolved an `OIDCIssuerFeatureCannotBeDisabled` error by aligning Terraform config with the AKS cluster's actual deployed state (OIDC issuer cannot be disabled once enabled).
+- **RBAC vs. legacy Key Vault access models** — diagnosed a `403 Forbidden / ForbiddenByRbac` error caused by the pipeline's identity lacking explicit RBAC permissions on a Key Vault using `enable_rbac_authorization = true`; added an explicit `Key Vault Secrets Officer` role assignment scoped to the vault.
+- **State drift from local vs. pipeline identity** — discovered that running Terraform locally under a personal Azure AD identity (vs. the pipeline's service connection identity) caused `data.azurerm_client_config.current` to resolve differently, which would have triggered unintended ownership changes to the Service Principal and Key Vault role assignments. Resolved by using `terraform import` only (never `apply`) for local state reconciliation, and verifying via the pipeline as the source of truth.
+- **Safe teardown design** — built a separate destroy pipeline with a plan-preview stage and a manual approval gate (via Azure DevOps Environments) before any destructive action runs.
+
+## Tech Stack
+
+- **Terraform** (1.15.x) — infrastructure as code
+- **Azure DevOps Pipelines** — YAML-based multi-stage CI/CD
+- **Azure providers**: `azurerm`, `azuread`, `tls`, `local`
+- **Azure services**: AKS, Key Vault, Resource Groups, Azure AD App Registrations/Service Principals, Blob Storage (remote state)
+
+## Notes
+
+- The pipeline currently uses client secret authentication for the service connection; migrating to **Workload Identity Federation** is a planned improvement (flagged by Azure DevOps as a deprecation warning, non-blocking).
+- SSH keys for AKS node access are injected via pipeline variables and never committed to source control.# 🚀 Azure End-to-End Infrastructure Automation using Terraform & Azure DevOps
 
 ![Azure](https://img.shields.io/badge/Azure-Cloud-blue)
 ![Terraform](https://img.shields.io/badge/Terraform-IaC-purple)

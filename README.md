@@ -7,6 +7,13 @@ A multi-stage Azure DevOps pipeline that provisions Azure infrastructure — AKS
 <img width="1416" height="693" alt="Screenshot 2026-06-30 at 4 33 35 PM" src="https://github.com/user-attachments/assets/ffdf954f-e1ef-40aa-938e-d6fabf20e59e" />
 ![Uploading Screenshot 2026-06-30 at 4.33.35 PM.png…]()
 
+## Destroy Pipeline — Approval Gate
+
+![Destroy pipeline paused for manual approval]  
+![Uploading Screenshot 2026-06-30 at 9.35.08 PM.png…]()
+
+
+*The destroy pipeline runs `plan_destroy` automatically to preview what would be removed, then pauses at `destroy_env`, requiring explicit manual approval via an Azure DevOps Environment check before any infrastructure is torn down.*
 
 
 *Three-stage pipeline — Terraform validate, Dev deploy, and Staging deploy — completing successfully end-to-end.*

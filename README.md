@@ -10,7 +10,8 @@ A multi-stage Azure DevOps pipeline that provisions Azure infrastructure — AKS
 ## Destroy Pipeline — Approval Gate
 
 ![Destroy pipeline paused for manual approval]  
-![Uploading Screenshot 2026-06-30 at 9.35.08 PM.png…]()
+<img width="1467" height="761" alt="Screenshot 2026-06-30 at 9 35 08 PM" src="https://github.com/user-attachments/assets/111b009b-0f77-4528-8a73-2ccb1e54bcbf" />
+
 
 
 *The destroy pipeline runs `plan_destroy` automatically to preview what would be removed, then pauses at `destroy_env`, requiring explicit manual approval via an Azure DevOps Environment check before any infrastructure is torn down.*
